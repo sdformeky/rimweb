@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}{{ person.full_name }} · {{ settings.app_name }}{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <div>
+            <h1>{{ person.full_name }}</h1>
+            <p class="page-subtitle">@{{ person.nickname }}</p>
+        </div>
+    </div>
+
+    <section class="detail-grid">
+        <article class="panel">
+            <div class="panel-header"><h2>Профиль</h2></div>
+            <dl class="detail-list">
+                <div><dt>ФИО</dt><dd>{{ person.full_name }}</dd></div>
+                <div><dt>Nickname</dt><dd>@{{ person.nickname }}</dd></div>
+                <div><dt>Email</dt><dd>{{ person.email or '—' }}</dd></div>
+                <div><dt>Подразделение</dt><dd>{{ person.department or '—' }}</dd></div>
+                <div><dt>Роль</dt><dd>{{ person.role|role_label }}</dd></div>
+            </dl>
+            {% if can_manage %}
+                <form action="{{ url_for('person_change_role', user_id=person.id) }}" method="post" class="mini-form">
+                    <label>
+                        <span>Изменить роль</span>
+                        <select name="role">
+                            <option value="user" {% if person.role.value == 'user' %}selected{% endif %}>Пользователь</option>
+                            <option value="admin" {% if person.role.value == 'admin' %}selected{% endif %}>Администратор</option>
+                        </select>
+                    </label>
+                    <button type="submit" class="button button-small">Сохранить роль</button>
+                </form>
+            {% endif %}
+        </article>
+
+        <article class="panel">
+            <div class="panel-header">
+                <h2>Сейчас выдано</h2>
+                <div class="muted">{{ active_instances|length }} шт.</div>
+            </div>
+            {% if active_instances %}
+                <div class="pick-list">
+                    {% if can_manage %}
+                        <label class="bulk-row">
+                            <input type="checkbox" class="bulk-check-all" data-bulk-scope="held">
+                            <strong>Выбрать все</strong>
+                        </label>
+                    {% endif %}
+                    {% for instance in active_instances %}
+                        {% if can_manage %}
+                            <label class="bulk-row">
+                                <input type="checkbox" class="bulk-check" data-bulk-scope="held" value="{{ instance.id }}">
+                                <span><a href="{{ url_for('instance_detail', instance_id=instance.id) }}">{{ instance.inventory_number }}</a> · {{ instance.item_type.name }}</span>
+                            </label>
+                        {% else %}
+                            <div class="bulk-row"><a href="{{ url_for('instance_detail', instance_id=instance.id) }}">{{ instance.inventory_number }}</a> · {{ instance.item_type.name }}</div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            {% else %}
+                <span class="muted">Сейчас предметов нет.</span>
+            {% endif %}
+        </article>
+    </section>
+
+    {% if can_manage and active_instances %}
+        {% set bulk_scope = "held" %}
+        {% set bulk_actions = ["return", "condition"] %}
+        {% include "partials/bulk_actions.html" %}
+    {% endif %}
+
+    {% if can_manage %}
+        <section class="panel">
+            <div class="panel-header">
+                <h2>Выдать предметы</h2>
+                <div class="muted">Отметьте один или несколько экземпляров — все они будут выданы {{ person.full_name }} одной операцией.</div>
+            </div>
+            {% if available_instances %}
+                <form action="{{ url_for('person_issue_item', user_id=person.id) }}" method="post" class="form-grid">
+                    <label class="form-grid-span-2">
+                        <span>Поиск по свободным экземплярам</span>
+                        <input type="search" data-bulk-filter="issue-pick" placeholder="Инвентарный номер, название, место">
+                    </label>
+                    <div class="form-grid-span-2">
+                        <div class="pick-list">
+                            <label class="bulk-row">
+                                <input type="checkbox" class="bulk-check-all" data-bulk-scope="issue-pick">
+                                <strong>Выбрать все найденные</strong>
+                            </label>
+                            {% for instance in available_instances %}
+                                <label class="bulk-row" data-bulk-scope="issue-pick" data-bulk-text="{{ instance.label }}">
+                                    <input type="checkbox" class="bulk-check" data-bulk-scope="issue-pick" name="instance_ids" value="{{ instance.id }}">
+                                    <span>{{ instance.label }}</span>
+                                </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <label>
+                        <span>Дата и время</span>
+                        <input type="datetime-local" name="issued_at">
+                    </label>
+                    <label>
+                        <span>Комментарий</span>
+                        <input type="text" name="issue_comment">
+                    </label>
+                    <div class="form-actions form-grid-span-2">
+                        <button type="submit" class="button" data-bulk-submit-for="issue-pick">Выдать выбранные (<span data-bulk-counter="issue-pick">0</span>)</button>
+                    </div>
+                </form>
+            {% else %}
+                <div class="muted">Сейчас нет активных и свободных экземпляров для выдачи.</div>
+            {% endif %}
+        </section>
+        <script src="{{ url_for('static', path='bulk.js') }}"></script>
+    {% endif %}
+
+    <section class="panel">
+        <div class="panel-header"><h2>История выдач</h2></div>
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Предмет</th>
+                        <th>Выдан</th>
+                        <th>Вернул</th>
+                        <th>Дата выдачи</th>
+                        <th>Дата возврата</th>
+                        <th>Комментарий</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for issue in issue_history %}
+                        <tr>
+                            <td><a href="{{ url_for('instance_detail', instance_id=issue.item_instance.id) }}">{{ issue.item_instance.inventory_number }}</a> · {{ issue.item_instance.item_type.name }}</td>
+                            <td>{{ issue.issued_by_user.full_name }}</td>
+                            <td>{{ issue.returned_by_user.full_name if issue.returned_by_user else '—' }}</td>
+                            <td>{{ issue.issued_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>{{ issue.returned_at.strftime('%Y-%m-%d %H:%M') if issue.returned_at else '—' }}</td>
+                            <td>{{ issue.issue_comment or '—' }}</td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="6" class="empty-cell">История выдач пуста.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+{% endblock %}

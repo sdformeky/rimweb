@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Люди · {{ settings.app_name }}{% endblock %}
+
+{% block content %}
+    <div class="page-header split-header">
+        <div>
+            <h1>Люди</h1>
+            <p class="page-subtitle">Пользователи, которые уже заходили в систему через внешний сервис авторизации.</p>
+        </div>
+        <form method="get" class="inline-search">
+            <input type="search" name="q" value="{{ query }}" placeholder="ФИО, nickname, email, подразделение">
+            <button type="submit" class="button button-secondary">Найти</button>
+        </form>
+    </div>
+
+    <section class="panel">
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ФИО</th>
+                        <th>Nickname</th>
+                        <th>Email</th>
+                        <th>Подразделение</th>
+                        <th>Роль</th>
+                        <th>Выдано сейчас</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                        <tr>
+                            <td><a href="{{ url_for('person_detail', user_id=user.id) }}">{{ user.full_name }}</a></td>
+                            <td>{{ user.nickname }}</td>
+                            <td>{{ user.email or '—' }}</td>
+                            <td>{{ user.department or '—' }}</td>
+                            <td>{{ user.role|role_label }}</td>
+                            <td>{{ issued_counts[user.id] }}</td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="6" class="empty-cell">Пользователей пока нет.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+{% endblock %}

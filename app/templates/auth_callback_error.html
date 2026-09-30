@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ошибка callback авторизации</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}">
+</head>
+<body>
+    <main class="content" style="max-width: 960px; margin: 0 auto; padding-top: 48px; padding-bottom: 48px;">
+        <section class="panel">
+            <div class="panel-header">
+                <h1>RIM не смог завершить callback авторизации</h1>
+            </div>
+            <p class="page-subtitle">
+                AUTH вернул браузер на callback URL, но локальный вход в RIM завершить не удалось.
+            </p>
+
+            <div class="alert alert-error" style="margin-top: 18px;">
+                Проверьте настройки callback URL, cookie-домена и наличие рабочей пары
+                <code>access_token</code> и <code>refresh_token</code>.
+            </div>
+
+            {% if callback_error_reason %}
+                <div class="alert alert-error" style="margin-top: 18px;">
+                    Причина, которую увидел RIM:
+                    <code>{{ callback_error_reason }}</code>
+                </div>
+            {% endif %}
+
+            <div class="detail-grid" style="margin-top: 20px;">
+                <article class="panel">
+                    <div class="panel-header"><h2>Что видно со стороны RIM</h2></div>
+                    <dl class="detail-list">
+                        <div><dt>Ожидаемый callback URL</dt><dd><code>{{ expected_callback_url }}</code></dd></div>
+                        <div><dt>AUTH login URL</dt><dd><code>{{ auth_login_url }}</code></dd></div>
+                        <div><dt>`callback_url` cookie</dt><dd><code>{{ callback_cookie or 'не найдена' }}</code></dd></div>
+                        <div><dt>`return_to` cookie</dt><dd>{{ 'есть' if has_return_to_cookie else 'нет' }}</dd></div>
+                        <div><dt>`access_token` в callback</dt><dd>{{ 'есть' if has_access_cookie else 'нет' }}</dd></div>
+                        <div><dt>`refresh_token` в callback</dt><dd>{{ 'есть' if has_refresh_cookie else 'нет' }}</dd></div>
+                        <div><dt>`info_token` в callback</dt><dd>{{ 'есть' if has_info_cookie else 'нет' }}</dd></div>
+                        <div><dt>Refresh уже пытались</dt><dd>{{ 'да' if login_refresh_attempted else 'нет' }}</dd></div>
+                    </dl>
+                </article>
+
+                <article class="panel">
+                    <div class="panel-header"><h2>Что проверить</h2></div>
+                    <div class="compact-list">
+                        1. В AUTH и RIM должен быть общий cookie domain, если сервисы живут на разных сабдоменах.<br>
+                        2. Для production обе стороны должны использовать <code>Secure</code> cookies.<br>
+                        3. Callback URL в AUTH и в RIM должен совпадать строго, включая <code>https</code> и путь <code>/login</code>.<br>
+                        4. Если cookies доходят, но callback все равно не завершается, нужно проверить локальную валидацию токена и профиль из <code>info_token</code>.
+                    </div>
+                </article>
+            </div>
+
+            <div class="form-actions" style="margin-top: 18px;">
+                <a href="{{ url_for('login_entry') }}" class="button">Повторить вход</a>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

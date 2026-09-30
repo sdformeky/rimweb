@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}Места · {{ settings.app_name }}{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <div>
+            <h1>Места</h1>
+            <p class="page-subtitle">Лабораторные места хранятся деревом, складские — как предустановленные пары «комната / номер».</p>
+        </div>
+    </div>
+
+    {% if can_manage %}
+        <section class="detail-grid">
+            <article class="panel">
+                <div class="panel-header"><h2>Создать лабораторное место</h2></div>
+                <form action="{{ url_for('location_create') }}" method="post" class="form-grid">
+                    <label>
+                        <span>Тип</span>
+                        <input type="text" name="type_label" placeholder="кабинет / шкаф / стол" required>
+                    </label>
+                    <label>
+                        <span>Название</span>
+                        <input type="text" name="name" required>
+                    </label>
+                    <label>
+                        <span>Родитель</span>
+                        <select name="parent_id">
+                            <option value="">Корневой узел</option>
+                            {% for location in location_options %}
+                                <option value="{{ location.id }}" {% if selected_location and selected_location.id == location.id %}selected{% endif %}>{{ location.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <label class="form-grid-span-2">
+                        <span>Комментарий</span>
+                        <textarea name="comment" rows="3"></textarea>
+                    </label>
+                    <div class="form-actions form-grid-span-2">
+                        <button type="submit" class="button">Создать</button>
+                    </div>
+                </form>
+            </article>
+
+            <article class="panel">
+                <div class="panel-header"><h2>Создать складское место</h2></div>
+                <form action="{{ url_for('warehouse_location_create') }}" method="post" class="form-grid">
+                    <label>
+                        <span>Комната</span>
+                        <input type="text" name="room" placeholder="каб 439" list="warehouse-room-options" required>
+                    </label>
+                    <label>
+                        <span>Номер</span>
+                        <input type="text" name="slot_code" placeholder="1.2.2" required>
+                    </label>
+                    <label class="form-grid-span-2">
+                        <span>Комментарий</span>
+                        <textarea name="comment" rows="3"></textarea>
+                    </label>
+                    <div class="form-actions form-grid-span-2">
+                        <button type="submit" class="button">Создать</button>
+                    </div>
+                </form>
+            </article>
+        </section>
+    {% endif %}
+
+    <section class="detail-grid detail-grid-wide">
+        <article class="panel">
+            <div class="panel-header"><h2>Лабораторное дерево</h2></div>
+            {% with nodes=tree %}
+                {% include "partials/location_tree.html" %}
+            {% endwith %}
+        </article>
+
+        <article class="panel">
+            <div class="panel-header"><h2>Выбранное лабораторное место</h2></div>
+            {% if selected_location %}
+                <dl class="detail-list">
+                    <div><dt>Тип</dt><dd>{{ selected_location.type_label }}</dd></div>
+                    <div><dt>Название</dt><dd>{{ selected_location.name }}</dd></div>
+                    <div><dt>Полный путь</dt><dd>{{ selected_location_path }}</dd></div>
+                    <div><dt>Комментарий</dt><dd>{{ selected_location.comment or '—' }}</dd></div>
+                </dl>
+                <h3>Предметы внутри</h3>
+                <div class="compact-list">
+                    {% for instance in items_in_selected %}
+                        <a href="{{ url_for('instance_detail', instance_id=instance.id) }}">{{ instance.inventory_number }}</a> · {{ instance.item_type.name }}<br>
+                    {% else %}
+                        <span class="muted">Внутри предметов нет.</span>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-block">Выберите узел дерева слева.</div>
+            {% endif %}
+        </article>
+    </section>
+
+    {% if can_manage and selected_location %}
+        <section class="panel">
+            <div class="panel-header"><h2>Редактировать лабораторное место</h2></div>
+            <form action="{{ url_for('location_edit', location_id=selected_location.id) }}" method="post" class="form-grid">
+                <label>
+                    <span>Тип</span>
+                    <input type="text" name="type_label" value="{{ selected_location.type_label }}" required>
+                </label>
+                <label>
+                    <span>Название</span>
+                    <input type="text" name="name" value="{{ selected_location.name }}" required>
+                </label>
+                <label>
+                    <span>Новый родитель</span>
+                    <select name="parent_id">
+                        <option value="">Корневой узел</option>
+                        {% for location in location_options %}
+                            {% if location.id != selected_location.id %}
+                                <option value="{{ location.id }}" {% if selected_location.parent_id == location.id %}selected{% endif %}>{{ location.label }}</option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                </label>
+                <label class="form-grid-span-2">
+                    <span>Комментарий</span>
+                    <textarea name="comment" rows="3">{{ selected_location.comment or '' }}</textarea>
+                </label>
+                <div class="form-actions">
+                    <button type="submit" class="button">Сохранить</button>
+                </div>
+            </form>
+            <form action="{{ url_for('location_delete', location_id=selected_location.id) }}" method="post" class="inline-form">
+                <button type="submit" class="button button-danger">Удалить место</button>
+            </form>
+        </section>
+    {% endif %}
+
+    <section class="panel">
+        <div class="panel-header"><h2>Предустановленные складские места</h2></div>
+        {% if warehouse_location_groups %}
+            <div class="table-wrap">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Комната</th>
+                            <th>Номера</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for warehouse_group in warehouse_location_groups %}
+                            <tr>
+                                <td>{{ warehouse_group.title }}</td>
+                                <td>
+                                    {% for warehouse_location in warehouse_group.options %}
+                                        <div class="inline-form">
+                                            <span>{{ warehouse_location.display_label }}</span>
+                                            {% if warehouse_location.comment %}
+                                                <span class="muted">{{ warehouse_location.comment }}</span>
+                                            {% endif %}
+                                            {% if can_manage and warehouse_location.id %}
+                                                <form action="{{ url_for('warehouse_location_delete', location_id=warehouse_location.id) }}" method="post" class="inline-form">
+                                                    <button type="submit" class="button button-secondary button-small">Удалить</button>
+                                                </form>
+                                            {% endif %}
+                                        </div>
+                                    {% endfor %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-block">Предустановленных складских мест пока нет.</div>
+        {% endif %}
+    </section>
+
+    <datalist id="warehouse-room-options">
+        <option value="каб 439"></option>
+        <option value="каб 435"></option>
+        <option value="каб 444"></option>
+    </datalist>
+{% endblock %}

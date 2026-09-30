@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}Личный кабинет · {{ settings.app_name }}{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <div>
+            <h1>Личный кабинет</h1>
+            <p class="page-subtitle">Ваш профиль, текущие выдачи и история возвратов.</p>
+        </div>
+    </div>
+
+    <section class="detail-grid">
+        <article class="panel">
+            <div class="panel-header"><h2>Мой профиль</h2></div>
+            <dl class="detail-list">
+                <div><dt>ФИО</dt><dd>{{ current_user.full_name }}</dd></div>
+                <div><dt>Nickname</dt><dd>@{{ current_user.nickname }}</dd></div>
+                <div><dt>Email</dt><dd>{{ current_user.email or '—' }}</dd></div>
+                <div><dt>Подразделение</dt><dd>{{ current_user.department or '—' }}</dd></div>
+                <div><dt>Роль</dt><dd>{{ current_user.role|role_label }}</dd></div>
+            </dl>
+        </article>
+
+        <article class="panel">
+            <div class="panel-header"><h2>Сейчас у меня</h2></div>
+            <div class="compact-list">
+                {% for instance in active_instances %}
+                    <a href="{{ url_for('instance_detail', instance_id=instance.id) }}">{{ instance.inventory_number }}</a> · {{ instance.item_type.name }}<br>
+                {% else %}
+                    <span class="muted">Сейчас у вас нет выданных предметов.</span>
+                {% endfor %}
+            </div>
+        </article>
+    </section>
+
+    <section class="panel">
+        <div class="panel-header"><h2>История моих выдач</h2></div>
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Предмет</th>
+                        <th>Кто выдал</th>
+                        <th>Когда выдали</th>
+                        <th>Когда вернули</th>
+                        <th>Комментарий</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for issue in issue_history %}
+                        <tr>
+                            <td><a href="{{ url_for('instance_detail', instance_id=issue.item_instance.id) }}">{{ issue.item_instance.inventory_number }}</a> · {{ issue.item_instance.item_type.name }}</td>
+                            <td>{{ issue.issued_by_user.full_name }}</td>
+                            <td>{{ issue.issued_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>{{ issue.returned_at.strftime('%Y-%m-%d %H:%M') if issue.returned_at else '—' }}</td>
+                            <td>{{ issue.issue_comment or '—' }}</td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="5" class="empty-cell">История выдач пуста.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+{% endblock %}

@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Оборудование · {{ settings.app_name }}{% endblock %}
+
+{% block content %}
+    <div class="page-header split-header">
+        <div>
+            <h1>Оборудование</h1>
+            <p class="page-subtitle">Карточки типов оборудования с быстрым обзором, тегами и переходом к экземплярам.</p>
+        </div>
+        <form method="get" class="inline-search">
+            <input type="search" name="q" value="{{ query }}" placeholder="Название, теги, комментарий, store URL">
+            <button type="submit" class="button button-secondary">Найти</button>
+        </form>
+    </div>
+
+    {% if can_manage %}
+        <section class="panel">
+            <div class="panel-header">
+                <h2>Создать тип</h2>
+                <a href="{{ url_for('instances_create_page') }}" class="button button-secondary">Создать экземпляры</a>
+            </div>
+            <form action="{{ url_for('item_type_create') }}" method="post" class="form-grid">
+                <input type="hidden" name="next_url" value="{{ request.url }}">
+                <label>
+                    <span>Название</span>
+                    <input type="text" name="name" required>
+                </label>
+                <label>
+                    <span>Цена за экземпляр</span>
+                    <input type="text" name="unit_price" value="0">
+                </label>
+                <label>
+                    <span>Единица измерения</span>
+                    <input type="text" name="unit_label" value="шт" required>
+                </label>
+                <label class="form-grid-span-2">
+                    <span>Store URL</span>
+                    <input type="url" name="store_url" placeholder="https://...">
+                </label>
+                <label class="form-grid-span-2">
+                    <span>Теги</span>
+                    <input type="text" name="tags_text" placeholder="raspberry, камера, пайка">
+                </label>
+                <label class="form-grid-span-2">
+                    <span>Комментарий</span>
+                    <textarea name="comment" rows="3"></textarea>
+                </label>
+                <div class="form-actions form-grid-span-2">
+                    <button type="submit" class="button">Создать тип</button>
+                </div>
+            </form>
+        </section>
+    {% endif %}
+
+    <section class="equipment-card-grid">
+        {% for card in cards %}
+            <article class="equipment-card">
+                <div class="equipment-card-head">
+                    <div>
+                        <h2><a href="{{ url_for('item_type_detail', item_type_id=card.item_type.id) }}">{{ card.item_type.name }}</a></h2>
+                        <p class="page-subtitle">{{ card.item_type.comment or 'Без комментария' }}</p>
+                    </div>
+                    <div class="equipment-card-total">{{ card.total }} {{ card.item_type.unit_label }}</div>
+                </div>
+
+                <div class="tag-list">
+                    {% for tag in card.tags %}
+                        <span class="tag">{{ tag }}</span>
+                    {% else %}
+                        <span class="muted">Теги не указаны</span>
+                    {% endfor %}
+                </div>
+
+                <div class="equipment-card-stats">
+                    <div><strong>{{ card.total }}</strong><span>всего, {{ card.item_type.unit_label }}</span></div>
+                    <div><strong>{{ card.active_total }}</strong><span>активных, {{ card.item_type.unit_label }}</span></div>
+                    <div><strong>{{ card.issued_total }}</strong><span>выдано, {{ card.item_type.unit_label }}</span></div>
+                    <div><strong>{{ card.broken_total }}</strong><span>сломано, {{ card.item_type.unit_label }}</span></div>
+                </div>
+
+                <div class="equipment-card-meta">
+                    <div><span>Цена типа:</span> <strong>{{ card.item_type.unit_price|money }}</strong></div>
+                    <div><span>Стоимость всех экземпляров:</span> <strong>{{ card.total_value|money }}</strong></div>
+                </div>
+
+                <div class="equipment-card-actions">
+                    <a href="{{ url_for('item_type_detail', item_type_id=card.item_type.id) }}" class="button button-secondary button-small">Карточка типа</a>
+                    {% if card.item_type.store_url %}
+                        <a href="{{ card.item_type.store_url }}" target="_blank" rel="noreferrer" class="button button-secondary button-small">Store URL</a>
+                    {% endif %}
+                </div>
+            </article>
+        {% else %}
+            <article class="panel empty-block">
+                По выбранному запросу ничего не найдено.
+            </article>
+        {% endfor %}
+    </section>
+{% endblock %}

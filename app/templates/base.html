@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ settings.app_name }}{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}">
+</head>
+<body>
+    <div class="shell">
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-mark">RIM</div>
+                <div>
+                    <div class="brand-title">Resource Inventory Manager</div>
+                    <div class="brand-subtitle">Склад и лаборатория</div>
+                </div>
+            </div>
+            <nav class="nav">
+                <a href="{{ url_for('equipment_page') }}" class="nav-link {% if request.url.path.startswith('/equipment') or request.url.path.startswith('/item-types') %}is-active{% endif %}">Оборудование</a>
+                <a href="{{ url_for('inventory_list') }}" class="nav-link {% if request.url.path.startswith('/inventory') or request.url.path.startswith('/instances/') %}is-active{% endif %}">Склад</a>
+                <a href="{{ url_for('instances_list') }}" class="nav-link {% if request.url.path == '/instances' %}is-active{% endif %}">Экземпляры</a>
+                <a href="{{ url_for('locations_page') }}" class="nav-link {% if request.url.path.startswith('/locations') %}is-active{% endif %}">Места</a>
+                <a href="{{ url_for('people_list') }}" class="nav-link {% if request.url.path.startswith('/people') %}is-active{% endif %}">Люди</a>
+                <a href="{{ url_for('profile_page') }}" class="nav-link {% if request.url.path == '/me' %}is-active{% endif %}">Личный кабинет</a>
+                {% if current_user.role.value == 'admin' %}
+                    <a href="{{ url_for('audit_log') }}" class="nav-link {% if request.url.path.startswith('/audit') %}is-active{% endif %}">Журнал действий</a>
+                {% endif %}
+            </nav>
+            <div class="sidebar-footer">
+                <div class="user-card">
+                    <div class="user-card-title">{{ current_user.full_name }}</div>
+                    <div class="user-card-subtitle">@{{ current_user.nickname }} · {{ current_user.role|role_label }}</div>
+                </div>
+                <form action="{{ url_for('logout_entry') }}" method="post">
+                    <button type="submit" class="button button-secondary button-full">Выйти</button>
+                </form>
+            </div>
+        </aside>
+
+        <main class="content">
+            {% if message %}
+                <div class="alert alert-success">{{ message }}</div>
+            {% endif %}
+            {% if error %}
+                <div class="alert alert-error">{{ error }}</div>
+            {% endif %}
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+</body>
+</html>

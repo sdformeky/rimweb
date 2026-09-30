@@ -1,0 +1,10 @@
+<option value="">Не выбрано</option>
+{% for warehouse_group in warehouse_location_select_groups %}
+    <optgroup label="{{ warehouse_group.title }}">
+        {% for warehouse_location in warehouse_group.options %}
+            <option value="{{ warehouse_location.value }}" {% if selected_warehouse_location == warehouse_location.value %}selected{% endif %}>
+                {{ warehouse_location.display_label }}
+            </option>
+        {% endfor %}
+    </optgroup>
+{% endfor %}

@@ -1,0 +1,181 @@
+<div class="bulk-bar" data-bulk-scope="{{ bulk_scope }}">
+    <div class="bulk-bar-head">
+        <strong>Выбрано: <span data-bulk-count>0</span></strong>
+        <button type="button" class="button button-secondary button-small" data-bulk-clear>Снять выбор</button>
+        <span class="muted" data-bulk-hint>Отметьте экземпляры галочками, затем выберите действие.</span>
+    </div>
+    <div class="bulk-bar-actions">
+        {% if 'issue' in bulk_actions %}
+            <details class="action-details" name="bulk-action-{{ bulk_scope }}">
+                <summary>Выдать одному человеку</summary>
+                <form action="{{ url_for('bulk_issue') }}" method="post" class="mini-form" data-bulk-form>
+                    <input type="hidden" name="next_url" value="{{ request.url }}">
+                    <label>
+                        <span>Кому</span>
+                        <select name="issued_to_user_id" required>
+                            {% for user in users %}
+                                <option value="{{ user.id }}" {% if bulk_default_user_id is defined and bulk_default_user_id == user.id %}selected{% endif %}>{{ user.full_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <label>
+                        <span>Дата и время</span>
+                        <input type="datetime-local" name="issued_at">
+                    </label>
+                    <label>
+                        <span>Комментарий</span>
+                        <input type="text" name="issue_comment">
+                    </label>
+                    <button type="submit" class="button button-small" data-bulk-submit>Выдать выбранные</button>
+                </form>
+            </details>
+        {% endif %}
+
+        {% if 'return' in bulk_actions %}
+            <details class="action-details" name="bulk-action-{{ bulk_scope }}">
+                <summary>Оформить возврат</summary>
+                <form action="{{ url_for('bulk_return') }}" method="post" class="mini-form" data-bulk-form>
+                    <input type="hidden" name="next_url" value="{{ request.url }}">
+                    <label>
+                        <span>Куда вернуть</span>
+                        <select name="return_location_mode">
+                            <option value="previous">Каждый на прежнее место</option>
+                            <option value="custom">В указанное место</option>
+                        </select>
+                    </label>
+                    <label>
+                        <span>Тип места</span>
+                        <select name="physical_location_type">
+                            {% for location_type in physical_location_types %}
+                                <option value="{{ location_type.value }}">{{ location_type|location_type_label }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <label>
+                        <span>Складской адрес</span>
+                        {% set selected_warehouse_location = '' %}
+                        <select name="warehouse_location_text">
+                            {% include "partials/warehouse_location_select_options.html" %}
+                        </select>
+                    </label>
+                    <label>
+                        <span>Лабораторное место</span>
+                        <select name="lab_location_id">
+                            <option value="">Не выбрано</option>
+                            {% for location in location_options %}
+                                <option value="{{ location.id }}">{{ location.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <label>
+                        <span>Состояние после возврата</span>
+                        <select name="condition_status">
+                            <option value="">Не менять</option>
+                            {% for status in condition_statuses %}
+                                <option value="{{ status.value }}">{{ status|condition_label }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <label>
+                        <span>Дата и время</span>
+                        <input type="datetime-local" name="returned_at">
+                    </label>
+                    <label>
+                        <span>Комментарий</span>
+                        <input type="text" name="comment">
+                    </label>
+                    <button type="submit" class="button button-small" data-bulk-submit>Вернуть выбранные</button>
+                </form>
+            </details>
+        {% endif %}
+
+        {% if 'move' in bulk_actions %}
+            <details class="action-details" name="bulk-action-{{ bulk_scope }}">
+                <summary>Переместить</summary>
+                <form action="{{ url_for('bulk_move') }}" method="post" class="mini-form" data-bulk-form>
+                    <input type="hidden" name="next_url" value="{{ request.url }}">
+                    <label>
+                        <span>Тип места</span>
+                        <select name="physical_location_type">
+                            {% for location_type in physical_location_types %}
+                                <option value="{{ location_type.value }}" {% if location_type.value == 'warehouse' %}selected{% endif %}>{{ location_type|location_type_label }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <label>
+                        <span>Складской адрес</span>
+                        {% set selected_warehouse_location = '' %}
+                        <select name="warehouse_location_text">
+                            {% include "partials/warehouse_location_select_options.html" %}
+                        </select>
+                    </label>
+                    <label>
+                        <span>Лабораторное место</span>
+                        <select name="lab_location_id">
+                            <option value="">Не выбрано</option>
+                            {% for location in location_options %}
+                                <option value="{{ location.id }}">{{ location.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <label>
+                        <span>Комментарий</span>
+                        <input type="text" name="comment">
+                    </label>
+                    <button type="submit" class="button button-small" data-bulk-submit>Переместить выбранные</button>
+                </form>
+            </details>
+        {% endif %}
+
+        {% if 'condition' in bulk_actions %}
+            <details class="action-details" name="bulk-action-{{ bulk_scope }}">
+                <summary>Изменить состояние</summary>
+                <form action="{{ url_for('bulk_condition') }}" method="post" class="mini-form" data-bulk-form>
+                    <input type="hidden" name="next_url" value="{{ request.url }}">
+                    <label>
+                        <span>Новое состояние</span>
+                        <select name="condition_status">
+                            {% for status in condition_statuses %}
+                                <option value="{{ status.value }}">{{ status|condition_label }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <label>
+                        <span>Комментарий</span>
+                        <input type="text" name="comment">
+                    </label>
+                    <button type="submit" class="button button-small" data-bulk-submit>Применить</button>
+                </form>
+            </details>
+        {% endif %}
+
+        {% if 'write_off' in bulk_actions %}
+            <details class="action-details" name="bulk-action-{{ bulk_scope }}">
+                <summary>Списать</summary>
+                <form action="{{ url_for('bulk_write_off') }}" method="post" class="mini-form" data-bulk-form>
+                    <input type="hidden" name="next_url" value="{{ request.url }}">
+                    <label>
+                        <span>Комментарий</span>
+                        <input type="text" name="comment">
+                    </label>
+                    <button type="submit" class="button button-small" data-bulk-submit>Списать выбранные</button>
+                </form>
+            </details>
+        {% endif %}
+
+        {% if 'delete' in bulk_actions %}
+            <details class="action-details" name="bulk-action-{{ bulk_scope }}">
+                <summary>Удалить</summary>
+                <form action="{{ url_for('bulk_delete') }}" method="post" class="mini-form" data-bulk-form>
+                    <input type="hidden" name="next_url" value="{{ request.url }}">
+                    <div class="muted">Экземпляры и их история выдач будут удалены безвозвратно.</div>
+                    <label class="checkbox-row">
+                        <input type="checkbox" name="confirm_delete" value="1" required>
+                        <span>Подтверждаю удаление</span>
+                    </label>
+                    <button type="submit" class="button button-danger button-small" data-bulk-submit>Удалить выбранные</button>
+                </form>
+            </details>
+        {% endif %}
+    </div>
+</div>

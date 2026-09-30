@@ -1,0 +1,306 @@
+{% extends "base.html" %}
+
+{% block title %}{{ item_type.name }} · {{ settings.app_name }}{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <div>
+            <h1>{{ item_type.name }}</h1>
+            <p class="page-subtitle">Карточка типа, его стоимость, теги и все экземпляры.</p>
+        </div>
+    </div>
+
+    <section class="detail-grid">
+        <article class="panel">
+            <div class="panel-header"><h2>Информация о типе</h2></div>
+            <dl class="detail-list">
+                <div><dt>Название</dt><dd>{{ item_type.name }}</dd></div>
+                <div><dt>Единица измерения</dt><dd>{{ item_type.unit_label }}</dd></div>
+                <div><dt>Цена</dt><dd>{{ item_type.unit_price|money }}</dd></div>
+                <div>
+                    <dt>Store URL</dt>
+                    <dd>
+                        {% if item_type.store_url %}
+                            <a href="{{ item_type.store_url }}" target="_blank" rel="noreferrer">{{ item_type.store_url }}</a>
+                        {% else %}
+                            —
+                        {% endif %}
+                    </dd>
+                </div>
+                <div><dt>Теги</dt><dd>
+                    <div class="tag-list">
+                        {% for tag in tags %}
+                            <span class="tag">{{ tag }}</span>
+                        {% else %}
+                            <span class="muted">—</span>
+                        {% endfor %}
+                    </div>
+                </dd></div>
+                <div><dt>Комментарий</dt><dd>{{ item_type.comment or '—' }}</dd></div>
+            </dl>
+        </article>
+
+        {% if can_manage %}
+            <article class="panel">
+                <div class="panel-header"><h2>Редактирование</h2></div>
+                <form action="{{ url_for('item_type_edit', item_type_id=item_type.id) }}" method="post" class="form-grid">
+                    <label>
+                        <span>Название</span>
+                        <input type="text" name="name" value="{{ item_type.name }}" required>
+                    </label>
+                    <label>
+                        <span>Единица измерения</span>
+                        <input type="text" name="unit_label" value="{{ item_type.unit_label }}" required>
+                    </label>
+                    <label>
+                        <span>Цена за единицу</span>
+                        <input type="text" name="unit_price" value="{{ item_type.unit_price }}">
+                    </label>
+                    <label class="form-grid-span-2">
+                        <span>Store URL</span>
+                        <input type="url" name="store_url" value="{{ item_type.store_url or '' }}">
+                    </label>
+                    <label class="form-grid-span-2">
+                        <span>Теги</span>
+                        <input type="text" name="tags_text" value="{{ item_type.tags_text }}">
+                    </label>
+                    <label class="form-grid-span-2">
+                        <span>Комментарий</span>
+                        <textarea name="comment" rows="4">{{ item_type.comment or '' }}</textarea>
+                    </label>
+                    <div class="form-actions">
+                        <button type="submit" class="button">Сохранить</button>
+                    </div>
+                </form>
+                <form action="{{ url_for('item_type_delete', item_type_id=item_type.id) }}" method="post" class="inline-form">
+                    <button type="submit" class="button button-danger">Удалить тип</button>
+                    <span class="muted">Только без активных экземпляров. Списанные экземпляры удалятся вместе с типом.</span>
+                </form>
+            </article>
+        {% endif %}
+    </section>
+
+    {% if can_manage %}
+        <section class="panel">
+            <div class="panel-header"><h2>Создание экземпляров этого типа</h2></div>
+            <form action="{{ url_for('instances_create') }}" method="post" class="form-grid">
+                <input type="hidden" name="item_type_id" value="{{ item_type.id }}">
+                <input type="hidden" name="next_url" value="{{ request.url }}">
+                <label>
+                    <span>Тип предмета</span>
+                    <input type="text" value="{{ item_type.name }}" readonly>
+                </label>
+                <label>
+                    <span>Количество</span>
+                    <input type="number" min="1" name="quantity" value="1" required>
+                </label>
+                <label>
+                    <span>Состояние</span>
+                    <select name="condition_status">
+                        {% for status in condition_statuses %}
+                            <option value="{{ status.value }}">{{ status|condition_label }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label>
+                    <span>Сч.Фак</span>
+                    <input type="text" name="purchase_number">
+                </label>
+                <label>
+                    <span>Цена за единицу</span>
+                    <input type="text" name="purchase_unit_price" placeholder="Если пусто, берется цена типа">
+                </label>
+                <label>
+                    <span>Тип физического места</span>
+                    <select name="physical_location_type">
+                        {% for location_type in physical_location_types %}
+                            <option value="{{ location_type.value }}" {% if location_type.value == 'warehouse' %}selected{% endif %}>{{ location_type|location_type_label }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label>
+                    <span>Адрес на складе</span>
+                    {% set selected_warehouse_location = '' %}
+                    <select name="warehouse_location_text">
+                        {% include "partials/warehouse_location_select_options.html" %}
+                    </select>
+                </label>
+                <label>
+                    <span>Лабораторное место</span>
+                    <select name="lab_location_id">
+                        <option value="">Не выбрано</option>
+                        {% for location in location_options %}
+                            <option value="{{ location.id }}">{{ location.label }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label class="form-grid-span-2">
+                    <span>Теги экземпляров</span>
+                    <input type="text" name="tags_text" placeholder="учебный, калибровка, резерв">
+                </label>
+                <label class="checkbox-row form-grid-span-2">
+                    <input type="checkbox" name="auto_generate_inventory_numbers" value="1" checked>
+                    <span>Сгенерировать инвентарные номера автоматически</span>
+                </label>
+                <label class="form-grid-span-2">
+                    <span>Инвентарные номера вручную</span>
+                    <textarea name="manual_inventory_numbers" rows="6" placeholder="Если автогенерация выключена, укажите по одному номеру в строке."></textarea>
+                </label>
+                <div class="form-actions form-grid-span-2">
+                    <button type="submit" class="button">Создать экземпляры</button>
+                </div>
+            </form>
+        </section>
+    {% endif %}
+
+    <section class="panel">
+        <div class="panel-header">
+            <h2>Группы экземпляров</h2>
+            <div class="muted">По умолчанию группировка идет по сч.Фак.</div>
+        </div>
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Состояние</th>
+                        <th>Жизненный статус</th>
+                        <th>
+                            Место
+                            <a
+                                href="{{ url_for('item_type_detail', item_type_id=item_type.id) }}?group_by=location"
+                                class="group-toggle {% if selected_group_by == 'location' %}is-active{% endif %}"
+                                title="Группировать по месту"
+                            >&#8645;</a>
+                        </th>
+                        <th>Количество</th>
+                        <th>Теги экземпляров</th>
+                        <th>
+                            Сч.Фак
+                            <a
+                                href="{{ url_for('item_type_detail', item_type_id=item_type.id) }}?group_by=purchase"
+                                class="group-toggle {% if selected_group_by == 'purchase' %}is-active{% endif %}"
+                                title="Группировать по сч.Фак"
+                            >&#8645;</a>
+                        </th>
+                        <th>Детали</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for group in grouped_instances %}
+                        <tr>
+                            <td><span class="status-badge status-{{ group.condition_status.value }}">{{ group.condition_status|condition_label }}</span></td>
+                            <td><span class="status-badge status-{{ group.lifecycle_status.value }}">{{ group.lifecycle_status|lifecycle_label }}</span></td>
+                            <td>{{ group.location_display }}</td>
+                            <td>{{ group.count }} {{ item_type.unit_label }}</td>
+                            <td>
+                                <div class="tag-list">
+                                    {% for tag in group.instance_tags %}
+                                        <span class="tag tag-muted">{{ tag }}</span>
+                                    {% else %}
+                                        <span class="muted">—</span>
+                                    {% endfor %}
+                                </div>
+                            </td>
+                            <td>{{ group.purchase_display }}</td>
+                            <td>
+                                <details>
+                                    <summary>Показать экземпляры</summary>
+                                    <div class="compact-list">
+                                        {% for instance in group.instances %}
+                                            <a href="{{ url_for('instance_detail', instance_id=instance.id) }}">{{ instance.inventory_number }}</a>{% if not loop.last %}, {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                </details>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="7" class="empty-cell">Экземпляров этого типа пока нет.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="panel-header"><h2>Все экземпляры</h2></div>
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                    <tr>
+                        {% if can_manage %}
+                            <th class="bulk-check-cell">
+                                <input type="checkbox" class="bulk-check-all" data-bulk-scope="type-instances" title="Выбрать все">
+                            </th>
+                        {% endif %}
+                        <th>Инвентарный номер</th>
+                        <th>Состояние</th>
+                        <th>Статус</th>
+                        <th>Выдан</th>
+                        <th>Сч.Фак</th>
+                        <th>Место</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for instance in all_instances %}
+                        <tr>
+                            {% if can_manage %}
+                                <td class="bulk-check-cell">
+                                    <input type="checkbox" class="bulk-check" data-bulk-scope="type-instances" value="{{ instance.id }}" aria-label="Выбрать {{ instance.inventory_number }}">
+                                </td>
+                            {% endif %}
+                            <td><a href="{{ url_for('instance_detail', instance_id=instance.id) }}">{{ instance.inventory_number }}</a></td>
+                            <td>{{ instance.condition_status|condition_label }}</td>
+                            <td>{{ instance.lifecycle_status|lifecycle_label }}</td>
+                            <td>{{ instance.current_holder.full_name if instance.current_holder else 'Нет' }}</td>
+                            <td>{{ instance.purchase_number or '—' }}</td>
+                            <td>
+                                {% if instance.physical_location_type.value == 'warehouse' %}
+                                    {{ instance.warehouse_location_text or 'Склад без адреса' }}
+                                {% elif instance.physical_location_type.value == 'laboratory' %}
+                                    {{ location_path_map.get(instance.lab_location_id, 'Лаборатория') }}
+                                {% else %}
+                                    Не указано
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="{{ 7 if can_manage else 6 }}" class="empty-cell">Экземпляров нет.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    {% if can_manage and all_instances %}
+        {% set bulk_scope = "type-instances" %}
+        {% set bulk_actions = ["issue", "return", "move", "condition", "write_off", "delete"] %}
+        {% include "partials/bulk_actions.html" %}
+        <script src="{{ url_for('static', path='bulk.js') }}"></script>
+    {% endif %}
+
+    <section class="panel">
+        <div class="panel-header"><h2>История типа</h2></div>
+        <div class="audit-list">
+            {% for log in history_logs %}
+                <article class="audit-entry">
+                    <div class="audit-entry-head">
+                        <strong>{{ log.action_type }}</strong>
+                        <span>{{ log.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                    </div>
+                    <div class="muted">{{ log.actor.full_name if log.actor else 'Система' }}</div>
+                    {% if log.comment %}<div>{{ log.comment }}</div>{% endif %}
+                    {% if log.new_value_json %}
+                        <pre>{{ log.new_value_json }}</pre>
+                    {% endif %}
+                </article>
+            {% else %}
+                <div class="empty-block">История по типу пока пуста.</div>
+            {% endfor %}
+        </div>
+    </section>
+
+{% endblock %}

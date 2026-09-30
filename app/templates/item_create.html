@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Создание экземпляров · {{ settings.app_name }}{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <div>
+            <h1>Создание экземпляров</h1>
+            <p class="page-subtitle">Один или массово. Каждый экземпляр создается как отдельная учетная запись.</p>
+        </div>
+    </div>
+
+    <section class="panel">
+        <div class="panel-header">
+            <h2>Новая партия экземпляров</h2>
+            <a href="{{ url_for('equipment_page') }}" class="button button-secondary">Создать тип</a>
+        </div>
+        {% if can_manage %}
+            <form action="{{ url_for('instances_create') }}" method="post" class="form-grid">
+                <input type="hidden" name="next_url" value="/inventory">
+                <label>
+                    <span>Тип предмета</span>
+                    <select name="item_type_id" required>
+                        {% for item_type in item_types %}
+                            <option value="{{ item_type.id }}">{{ item_type.name }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label>
+                    <span>Количество</span>
+                    <input type="number" min="1" name="quantity" value="1" required>
+                </label>
+                <label>
+                    <span>Состояние</span>
+                    <select name="condition_status">
+                        {% for status in condition_statuses %}
+                            <option value="{{ status.value }}">{{ status|condition_label }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label>
+                    <span>Сч.Фак</span>
+                    <input type="text" name="purchase_number">
+                </label>
+                <label>
+                    <span>Цена за единицу</span>
+                    <input type="text" name="purchase_unit_price" placeholder="Если пусто, берется цена типа">
+                </label>
+                <label>
+                    <span>Тип физического места</span>
+                    <select name="physical_location_type">
+                        {% for location_type in physical_location_types %}
+                            <option value="{{ location_type.value }}" {% if location_type.value == 'warehouse' %}selected{% endif %}>{{ location_type|location_type_label }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label>
+                    <span>Адрес на складе</span>
+                    {% set selected_warehouse_location = '' %}
+                    <select name="warehouse_location_text">
+                        {% include "partials/warehouse_location_select_options.html" %}
+                    </select>
+                </label>
+                <label>
+                    <span>Лабораторное место</span>
+                    <select name="lab_location_id">
+                        <option value="">Не выбрано</option>
+                        {% for location in location_options %}
+                            <option value="{{ location.id }}">{{ location.label }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label class="form-grid-span-2">
+                    <span>Теги экземпляров</span>
+                    <input type="text" name="tags_text" placeholder="учебный, калибровка, резерв">
+                </label>
+                <label class="checkbox-row form-grid-span-2">
+                    <input type="checkbox" name="auto_generate_inventory_numbers" value="1" checked>
+                    <span>Сгенерировать инвентарные номера автоматически</span>
+                </label>
+                <label class="form-grid-span-2">
+                    <span>Инвентарные номера вручную</span>
+                    <textarea name="manual_inventory_numbers" rows="6" placeholder="Если автогенерация выключена, укажите по одному номеру в строке."></textarea>
+                </label>
+                <div class="form-actions form-grid-span-2">
+                    <button type="submit" class="button">Создать экземпляры</button>
+                </div>
+            </form>
+        {% else %}
+            <div class="empty-block">Только администратор может создавать экземпляры.</div>
+        {% endif %}
+    </section>
+{% endblock %}

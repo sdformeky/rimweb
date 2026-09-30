@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Журнал действий · {{ settings.app_name }}{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <div>
+            <h1>Журнал действий</h1>
+            <p class="page-subtitle">История изменений по пользователям, типам, экземплярам и лабораторным местам.</p>
+        </div>
+    </div>
+
+    <section class="panel">
+        <div class="panel-header"><h2>Фильтры</h2></div>
+        <form method="get" class="filter-grid">
+            <label>
+                <span>Пользователь</span>
+                <select name="actor_user_id">
+                    <option value="">Любой</option>
+                    {% for user in users %}
+                        <option value="{{ user.id }}" {% if selected_actor_user_id == user.id %}selected{% endif %}>{{ user.full_name }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                <span>Тип действия</span>
+                <input type="text" name="action_type" value="{{ selected_action_type }}" placeholder="item_issued">
+            </label>
+            <label>
+                <span>Тип сущности</span>
+                <input type="text" name="entity_type" value="{{ selected_entity_type }}" placeholder="item_instance">
+            </label>
+            <label>
+                <span>Дата с</span>
+                <input type="date" name="date_from" value="{{ selected_date_from }}">
+            </label>
+            <label>
+                <span>Дата по</span>
+                <input type="date" name="date_to" value="{{ selected_date_to }}">
+            </label>
+            <div class="form-actions">
+                <button type="submit" class="button">Применить</button>
+                <a href="{{ url_for('audit_log') }}" class="button button-secondary">Сбросить</a>
+            </div>
+        </form>
+    </section>
+
+    <section class="panel">
+        <div class="audit-list">
+            {% for log in logs %}
+                <article class="audit-entry">
+                    <div class="audit-entry-head">
+                        <strong>{{ log.action_type }}</strong>
+                        <span>{{ log.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                    </div>
+                    <div class="muted">{{ log.actor.full_name if log.actor else 'Система' }} · {{ log.entity_type }} #{{ log.entity_id }}</div>
+                    {% if log.comment %}<div>{{ log.comment }}</div>{% endif %}
+                    {% if log.old_value_json %}
+                        <details>
+                            <summary>old_value</summary>
+                            <pre>{{ log.old_value_json }}</pre>
+                        </details>
+                    {% endif %}
+                    {% if log.new_value_json %}
+                        <details>
+                            <summary>new_value</summary>
+                            <pre>{{ log.new_value_json }}</pre>
+                        </details>
+                    {% endif %}
+                </article>
+            {% else %}
+                <div class="empty-block">Под выбранные фильтры ничего не найдено.</div>
+            {% endfor %}
+        </div>
+    </section>
+{% endblock %}

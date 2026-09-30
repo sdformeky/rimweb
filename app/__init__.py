@@ -1,0 +1,1 @@
+"""RIM application package."""

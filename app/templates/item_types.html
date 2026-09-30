@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}Типы предметов · {{ settings.app_name }}{% endblock %}
+
+{% block content %}
+    <div class="page-header split-header">
+        <div>
+            <h1>Типы предметов</h1>
+            <p class="page-subtitle">Табличный каталог типов, тегов и стоимости экземпляров.</p>
+        </div>
+        <form class="inline-search" method="get">
+            <input type="search" name="q" value="{{ query }}" placeholder="Поиск по названию, тегам, комментарию, store URL">
+            <button type="submit" class="button button-secondary">Найти</button>
+        </form>
+    </div>
+
+    {% if can_manage %}
+        <section class="panel">
+            <div class="panel-header"><h2>Создать тип</h2></div>
+            <form action="{{ url_for('item_type_create') }}" method="post" class="form-grid">
+                <input type="hidden" name="next_url" value="{{ request.url }}">
+                <label>
+                    <span>Название</span>
+                    <input type="text" name="name" required>
+                </label>
+                <label>
+                    <span>Цена за экземпляр</span>
+                    <input type="text" name="unit_price" value="0">
+                </label>
+                <label>
+                    <span>Единица измерения</span>
+                    <input type="text" name="unit_label" value="шт" required>
+                </label>
+                <label class="form-grid-span-2">
+                    <span>Store URL</span>
+                    <input type="url" name="store_url" placeholder="https://...">
+                </label>
+                <label class="form-grid-span-2">
+                    <span>Теги</span>
+                    <input type="text" name="tags_text" placeholder="raspberry, камера, пайка">
+                </label>
+                <label class="form-grid-span-2">
+                    <span>Комментарий</span>
+                    <textarea name="comment" rows="3"></textarea>
+                </label>
+                <div class="form-actions form-grid-span-2">
+                    <button type="submit" class="button">Создать тип</button>
+                </div>
+            </form>
+        </section>
+    {% endif %}
+
+    <section class="panel">
+        <div class="panel-header"><h2>Список типов</h2></div>
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Название</th>
+                        <th>Теги</th>
+                        <th>Store URL</th>
+                        <th>Ед.</th>
+                        <th>Цена</th>
+                        <th>Экземпляров</th>
+                        <th>Активных</th>
+                        <th>Стоимость всех</th>
+                        <th>Стоимость активных</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item_type in item_types %}
+                        {% set totals = totals_by_type[item_type.id] %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('item_type_detail', item_type_id=item_type.id) }}">{{ item_type.name }}</a>
+                                <div class="muted">{{ item_type.comment or 'Без комментария' }}</div>
+                            </td>
+                            <td>
+                                <div class="tag-list">
+                                    {% for tag in parse_tags(item_type.tags_text) %}
+                                        <span class="tag">{{ tag }}</span>
+                                    {% else %}
+                                        <span class="muted">—</span>
+                                    {% endfor %}
+                                </div>
+                            </td>
+                            <td>
+                                {% if item_type.store_url %}
+                                    <a href="{{ item_type.store_url }}" target="_blank" rel="noreferrer">Открыть</a>
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                            <td>{{ item_type.unit_label }}</td>
+                            <td>{{ item_type.unit_price|money }}</td>
+                            <td>{{ totals.count }} {{ item_type.unit_label }}</td>
+                            <td>{{ totals.active_count }} {{ item_type.unit_label }}</td>
+                            <td>{{ totals.all_total|money }}</td>
+                            <td>{{ totals.active_total|money }}</td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="9" class="empty-cell">Типы предметов пока не созданы.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+{% endblock %}

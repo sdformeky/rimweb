@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Главная · {{ settings.app_name }}{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <div>
+            <h1>Главная панель</h1>
+            <p class="page-subtitle">Сводка по оборудованию, пользователям и последним действиям.</p>
+        </div>
+    </div>
+
+    <section class="stats-grid">
+        <article class="stat-card">
+            <span class="stat-label">Всего типов</span>
+            <strong class="stat-value">{{ stats.item_types_total }}</strong>
+        </article>
+        <article class="stat-card">
+            <span class="stat-label">Всего экземпляров</span>
+            <strong class="stat-value">{{ stats.instances_total }}</strong>
+        </article>
+        <article class="stat-card">
+            <span class="stat-label">Активных</span>
+            <strong class="stat-value">{{ stats.instances_active }}</strong>
+        </article>
+        <article class="stat-card">
+            <span class="stat-label">Списанных</span>
+            <strong class="stat-value">{{ stats.instances_written_off }}</strong>
+        </article>
+        <article class="stat-card">
+            <span class="stat-label">Выдано</span>
+            <strong class="stat-value">{{ stats.instances_issued }}</strong>
+        </article>
+        <article class="stat-card">
+            <span class="stat-label">Сломано</span>
+            <strong class="stat-value">{{ stats.instances_broken }}</strong>
+        </article>
+        <article class="stat-card">
+            <span class="stat-label">В ремонте</span>
+            <strong class="stat-value">{{ stats.instances_in_repair }}</strong>
+        </article>
+    </section>
+
+    <section class="panel">
+        <div class="panel-header">
+            <h2>Последние действия</h2>
+        </div>
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Когда</th>
+                        <th>Кто</th>
+                        <th>Действие</th>
+                        <th>Сущность</th>
+                        <th>Комментарий</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in recent_logs %}
+                        <tr>
+                            <td>{{ log.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>{{ log.actor.full_name if log.actor else 'Система' }}</td>
+                            <td><code>{{ log.action_type }}</code></td>
+                            <td>{{ log.entity_type }} #{{ log.entity_id }}</td>
+                            <td>{{ log.comment or '—' }}</td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="5" class="empty-cell">Записей пока нет.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+{% endblock %}

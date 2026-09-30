@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block title %}Экземпляры · {{ settings.app_name }}{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <div>
+            <h1>Экземпляры</h1>
+            <p class="page-subtitle">Плоский список всех экземпляров. Отметьте нужные галочками, чтобы выдать, вернуть, переместить, списать или удалить их за раз.</p>
+        </div>
+        {% if can_manage %}
+            <div class="inline-form">
+                <a href="{{ url_for('instances_create_page') }}" class="button button-secondary">Создать экземпляры</a>
+            </div>
+        {% endif %}
+    </div>
+
+    <section class="panel">
+        <div class="panel-header"><h2>Фильтры</h2></div>
+        <form method="get" class="filter-grid">
+            <label class="form-grid-span-2">
+                <span>Поиск</span>
+                <input type="search" name="q" value="{{ query }}" placeholder="Название, инвентарный номер, теги, сч.фак, место, пользователь">
+            </label>
+            <label>
+                <span>Тип предмета</span>
+                <select name="item_type_id">
+                    <option value="">Любой</option>
+                    {% for item_type in item_types %}
+                        <option value="{{ item_type.id }}" {% if selected_item_type_id == item_type.id %}selected{% endif %}>{{ item_type.name }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                <span>Выдача</span>
+                <select name="availability">
+                    <option value="">Все</option>
+                    <option value="free" {% if selected_availability == 'free' %}selected{% endif %}>Не выданы</option>
+                    <option value="issued" {% if selected_availability == 'issued' %}selected{% endif %}>Выданы</option>
+                </select>
+            </label>
+            <label>
+                <span>Состояние</span>
+                <select name="condition_status">
+                    <option value="">Любое</option>
+                    {% for status in condition_statuses %}
+                        <option value="{{ status.value }}" {% if selected_condition_status == status.value %}selected{% endif %}>{{ status|condition_label }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                <span>Жизненный статус</span>
+                <select name="lifecycle_status">
+                    <option value="">Любой</option>
+                    {% for status in lifecycle_statuses %}
+                        <option value="{{ status.value }}" {% if selected_lifecycle_status == status.value %}selected{% endif %}>{{ status|lifecycle_label }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                <span>ФИО держателя</span>
+                <input type="text" name="holder" value="{{ selected_holder }}">
+            </label>
+            <label class="checkbox-row">
+                <input type="checkbox" name="show_written_off" value="1" {% if show_written_off %}checked{% endif %}>
+                <span>Показывать списанные</span>
+            </label>
+            <div class="form-actions">
+                <button type="submit" class="button">Применить</button>
+                <a href="{{ url_for('instances_list') }}" class="button button-secondary">Сбросить</a>
+            </div>
+        </form>
+    </section>
+
+    <section class="panel">
+        <div class="panel-header">
+            <h2>Список</h2>
+            <div class="muted">Найдено: {{ instances|length }}</div>
+        </div>
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                    <tr>
+                        {% if can_manage %}
+                            <th class="bulk-check-cell">
+                                <input type="checkbox" class="bulk-check-all" data-bulk-scope="instances" title="Выбрать все">
+                            </th>
+                        {% endif %}
+                        <th>Инвентарный номер</th>
+                        <th>Тип предмета</th>
+                        <th>Состояние</th>
+                        <th>Статус</th>
+                        <th>Кому выдано</th>
+                        <th>Место</th>
+                        <th>Сч.Фак</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for instance in instances %}
+                        <tr>
+                            {% if can_manage %}
+                                <td class="bulk-check-cell">
+                                    <input type="checkbox" class="bulk-check" data-bulk-scope="instances" value="{{ instance.id }}" aria-label="Выбрать {{ instance.inventory_number }}">
+                                </td>
+                            {% endif %}
+                            <td><a href="{{ url_for('instance_detail', instance_id=instance.id) }}">{{ instance.inventory_number }}</a></td>
+                            <td><a href="{{ url_for('item_type_detail', item_type_id=instance.item_type.id) }}">{{ instance.item_type.name }}</a></td>
+                            <td><span class="status-badge status-{{ instance.condition_status.value }}">{{ instance.condition_status|condition_label }}</span></td>
+                            <td><span class="status-badge status-{{ instance.lifecycle_status.value }}">{{ instance.lifecycle_status|lifecycle_label }}</span></td>
+                            <td>
+                                {% if instance.current_holder %}
+                                    <a href="{{ url_for('person_detail', user_id=instance.current_holder.id) }}">{{ instance.current_holder.full_name }}</a>
+                                {% else %}
+                                    <span class="muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ location_display_map[instance.id] }}</td>
+                            <td>{{ instance.purchase_number or '—' }}</td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="{{ 8 if can_manage else 7 }}" class="empty-cell">Под выбранные фильтры ничего не найдено.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    {% if can_manage %}
+        {% set bulk_scope = "instances" %}
+        {% set bulk_actions = ["issue", "return", "move", "condition", "write_off", "delete"] %}
+        {% include "partials/bulk_actions.html" %}
+        <script src="{{ url_for('static', path='bulk.js') }}"></script>
+    {% endif %}
+{% endblock %}

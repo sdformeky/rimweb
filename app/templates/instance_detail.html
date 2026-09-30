@@ -1,0 +1,307 @@
+{% extends "base.html" %}
+
+{% block title %}{{ instance.inventory_number }} · {{ settings.app_name }}{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <div>
+            <h1>{{ instance.inventory_number }}</h1>
+            <p class="page-subtitle">{{ instance.item_type.name }}</p>
+        </div>
+    </div>
+
+    <section class="detail-grid">
+        <article class="panel">
+            <div class="panel-header"><h2>Карточка экземпляра</h2></div>
+            <dl class="detail-list">
+                <div><dt>Тип</dt><dd><a href="{{ url_for('item_type_detail', item_type_id=instance.item_type.id) }}">{{ instance.item_type.name }}</a></dd></div>
+                <div><dt>Инвентарный номер</dt><dd>{{ instance.inventory_number }}</dd></div>
+                <div><dt>Состояние</dt><dd><span class="status-badge status-{{ instance.condition_status.value }}">{{ instance.condition_status|condition_label }}</span></dd></div>
+                <div><dt>Жизненный статус</dt><dd><span class="status-badge status-{{ instance.lifecycle_status.value }}">{{ instance.lifecycle_status|lifecycle_label }}</span></dd></div>
+                <div><dt>Теги типа</dt><dd><div class="tag-list">{% for tag in type_tags %}<span class="tag">{{ tag }}</span>{% else %}<span class="muted">—</span>{% endfor %}</div></dd></div>
+                <div><dt>Теги экземпляра</dt><dd><div class="tag-list">{% for tag in instance_tags %}<span class="tag tag-muted">{{ tag }}</span>{% else %}<span class="muted">—</span>{% endfor %}</div></dd></div>
+                <div><dt>Сч.Фак</dt><dd>{{ instance.purchase_number or '—' }}</dd></div>
+                <div>
+                    <dt>Цена за единицу</dt>
+                    <dd>
+                        {% if instance.purchase_unit_price is not none %}
+                            {{ instance.purchase_unit_price|money }}
+                        {% else %}
+                            {{ instance.item_type.unit_price|money }} <span class="muted">(из цены типа)</span>
+                        {% endif %}
+                    </dd>
+                </div>
+                <div><dt>Текущее место</dt><dd>
+                    {% if instance.physical_location_type.value == 'warehouse' %}
+                        {{ instance.warehouse_location_text or 'Склад без адреса' }}
+                    {% elif instance.physical_location_type.value == 'laboratory' %}
+                        {{ location_path_map.get(instance.lab_location_id, 'Лаборатория') }}
+                    {% else %}
+                        Не указано
+                    {% endif %}
+                </dd></div>
+                <div><dt>Кому выдано</dt><dd>{{ instance.current_holder.full_name if instance.current_holder else 'Не выдан' }}</dd></div>
+            </dl>
+        </article>
+
+        <article class="panel">
+            <div class="panel-header"><h2>Активная выдача</h2></div>
+            {% if active_issue %}
+                <dl class="detail-list">
+                    <div><dt>Кому выдано</dt><dd>{{ active_issue.issued_to_user.full_name }}</dd></div>
+                    <div><dt>Кто оформил</dt><dd>{{ active_issue.issued_by_user.full_name }}</dd></div>
+                    <div><dt>Когда</dt><dd>{{ active_issue.issued_at.strftime('%Y-%m-%d %H:%M') }}</dd></div>
+                    <div><dt>Комментарий</dt><dd>{{ active_issue.issue_comment or '—' }}</dd></div>
+                </dl>
+            {% else %}
+                <div class="empty-block">Сейчас экземпляр никому не выдан.</div>
+            {% endif %}
+        </article>
+    </section>
+
+    {% if can_manage %}
+        <section class="panel">
+            <div class="panel-header"><h2>Учетные поля</h2></div>
+            <form action="{{ url_for('instance_edit', instance_id=instance.id) }}" method="post" class="form-grid">
+                <input type="hidden" name="next_url" value="{{ request.url }}">
+                <label>
+                    <span>Инвентарный номер</span>
+                    <input type="text" name="inventory_number" value="{{ instance.inventory_number }}" required>
+                </label>
+                <label>
+                    <span>Сч.Фак</span>
+                    <input type="text" name="purchase_number" value="{{ instance.purchase_number or '' }}">
+                </label>
+                <label>
+                    <span>Цена за единицу</span>
+                    <input type="text" name="purchase_unit_price" value="{{ instance.purchase_unit_price if instance.purchase_unit_price is not none else '' }}">
+                </label>
+                <label class="form-grid-span-2">
+                    <span>Теги экземпляра</span>
+                    <input type="text" name="tags_text" value="{{ instance.tags_text }}">
+                </label>
+                <div class="form-actions form-grid-span-2">
+                    <button type="submit" class="button">Сохранить учетные поля</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="panel">
+            <div class="panel-header"><h2>Действия администратора</h2></div>
+            <div class="admin-actions-grid">
+                <form action="{{ url_for('instance_move', instance_id=instance.id) }}" method="post" class="mini-form">
+                    <input type="hidden" name="next_url" value="{{ request.url }}">
+                    <h3>Переместить</h3>
+                    <label>
+                        <span>Тип места</span>
+                        <select name="physical_location_type">
+                            {% for location_type in physical_location_types %}
+                                <option value="{{ location_type.value }}" {% if instance.physical_location_type.value == location_type.value %}selected{% endif %}>{{ location_type|location_type_label }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <label>
+                        <span>Складской адрес</span>
+                        {% set selected_warehouse_location = instance.warehouse_location_text or '' %}
+                        <select name="warehouse_location_text">
+                            {% include "partials/warehouse_location_select_options.html" %}
+                        </select>
+                    </label>
+                    <label>
+                        <span>Лабораторное место</span>
+                        <select name="lab_location_id">
+                            <option value="">Не выбрано</option>
+                            {% for location in location_options %}
+                                <option value="{{ location.id }}" {% if instance.lab_location_id == location.id %}selected{% endif %}>{{ location.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <label>
+                        <span>Комментарий</span>
+                        <input type="text" name="comment">
+                    </label>
+                    <button type="submit" class="button button-small">Сохранить место</button>
+                </form>
+
+                <form action="{{ url_for('instance_change_condition', instance_id=instance.id) }}" method="post" class="mini-form">
+                    <input type="hidden" name="next_url" value="{{ request.url }}">
+                    <h3>Изменить состояние</h3>
+                    <label>
+                        <span>Состояние</span>
+                        <select name="condition_status">
+                            {% for status in condition_statuses %}
+                                <option value="{{ status.value }}" {% if instance.condition_status.value == status.value %}selected{% endif %}>{{ status|condition_label }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <label>
+                        <span>Комментарий</span>
+                        <input type="text" name="comment">
+                    </label>
+                    <button type="submit" class="button button-small">Обновить состояние</button>
+                </form>
+
+                {% if not active_issue %}
+                    <form action="{{ url_for('instance_issue', instance_id=instance.id) }}" method="post" class="mini-form">
+                        <input type="hidden" name="next_url" value="{{ request.url }}">
+                        <h3>Выдать</h3>
+                        <label>
+                            <span>Пользователь</span>
+                            <select name="issued_to_user_id">
+                                {% for user in users %}
+                                    <option value="{{ user.id }}">{{ user.full_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </label>
+                        <label>
+                            <span>Дата и время</span>
+                            <input type="datetime-local" name="issued_at">
+                        </label>
+                        <label>
+                            <span>Комментарий</span>
+                            <input type="text" name="issue_comment">
+                        </label>
+                        <button type="submit" class="button button-small">Оформить выдачу</button>
+                    </form>
+                {% else %}
+                    <form action="{{ url_for('instance_return', instance_id=instance.id) }}" method="post" class="mini-form">
+                        <input type="hidden" name="next_url" value="{{ request.url }}">
+                        <h3>Возврат</h3>
+                        <label>
+                            <span>Куда вернуть</span>
+                            <select name="return_location_mode">
+                                <option value="previous">По умолчанию в прежнее место</option>
+                                <option value="custom">Выбрать новое место</option>
+                            </select>
+                        </label>
+                        <label>
+                            <span>Тип места</span>
+                            <select name="physical_location_type">
+                                {% for location_type in physical_location_types %}
+                                    <option value="{{ location_type.value }}">{{ location_type|location_type_label }}</option>
+                                {% endfor %}
+                            </select>
+                        </label>
+                        <label>
+                            <span>Складской адрес</span>
+                            {% set selected_warehouse_location = '' %}
+                            <select name="warehouse_location_text">
+                                {% include "partials/warehouse_location_select_options.html" %}
+                            </select>
+                        </label>
+                        <label>
+                            <span>Лабораторное место</span>
+                            <select name="lab_location_id">
+                                <option value="">Не выбрано</option>
+                                {% for location in location_options %}
+                                    <option value="{{ location.id }}">{{ location.label }}</option>
+                                {% endfor %}
+                            </select>
+                        </label>
+                        <label>
+                            <span>Вернуть как</span>
+                            <select name="condition_status">
+                                <option value="">Без изменения состояния</option>
+                                {% for status in condition_statuses %}
+                                    <option value="{{ status.value }}">{{ status|condition_label }}</option>
+                                {% endfor %}
+                            </select>
+                        </label>
+                        <label>
+                            <span>Дата и время возврата</span>
+                            <input type="datetime-local" name="returned_at">
+                        </label>
+                        <label>
+                            <span>Комментарий</span>
+                            <input type="text" name="comment">
+                        </label>
+                        <button type="submit" class="button button-small">Оформить возврат</button>
+                    </form>
+                {% endif %}
+
+                <form action="{{ url_for('instance_write_off', instance_id=instance.id) }}" method="post" class="mini-form">
+                    <input type="hidden" name="next_url" value="{{ request.url }}">
+                    <h3>Списание</h3>
+                    <label>
+                        <span>Комментарий</span>
+                        <input type="text" name="comment" placeholder="Причина списания">
+                    </label>
+                    <button type="submit" class="button button-danger button-small">Списать</button>
+                </form>
+
+                <form action="{{ url_for('instance_delete', instance_id=instance.id) }}" method="post" class="mini-form" onsubmit="return confirm('Удалить экземпляр безвозвратно? Это действие нельзя отменить.');">
+                    <input type="hidden" name="next_url" value="/inventory">
+                    <h3>Удалить</h3>
+                    <div class="muted">
+                        Экземпляр будет удален физически. Связанные записи выдач для него тоже будут удалены.
+                    </div>
+                    <button type="submit" class="button button-danger button-small">Удалить безвозвратно</button>
+                </form>
+            </div>
+        </section>
+    {% endif %}
+
+    <section class="panel">
+        <div class="panel-header"><h2>История выдач</h2></div>
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Кому</th>
+                        <th>Кто выдал</th>
+                        <th>Когда выдали</th>
+                        <th>Когда вернули</th>
+                        <th>Кто вернул</th>
+                        <th>Комментарий</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for issue in instance.issue_records %}
+                        <tr>
+                            <td>{{ issue.issued_to_user.full_name }}</td>
+                            <td>{{ issue.issued_by_user.full_name }}</td>
+                            <td>{{ issue.issued_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>{{ issue.returned_at.strftime('%Y-%m-%d %H:%M') if issue.returned_at else '—' }}</td>
+                            <td>{{ issue.returned_by_user.full_name if issue.returned_by_user else '—' }}</td>
+                            <td>{{ issue.issue_comment or '—' }}</td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="6" class="empty-cell">Выдач пока не было.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="panel-header"><h2>История действий</h2></div>
+        <div class="audit-list">
+            {% for log in history_logs %}
+                <article class="audit-entry">
+                    <div class="audit-entry-head">
+                        <strong>{{ log.action_type }}</strong>
+                        <span>{{ log.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                    </div>
+                    <div class="muted">{{ log.actor.full_name if log.actor else 'Система' }}</div>
+                    {% if log.comment %}<div>{{ log.comment }}</div>{% endif %}
+                    {% if log.old_value_json %}
+                        <details>
+                            <summary>Было</summary>
+                            <pre>{{ log.old_value_json }}</pre>
+                        </details>
+                    {% endif %}
+                    {% if log.new_value_json %}
+                        <details>
+                            <summary>Стало</summary>
+                            <pre>{{ log.new_value_json }}</pre>
+                        </details>
+                    {% endif %}
+                </article>
+            {% else %}
+                <div class="empty-block">История пока пуста.</div>
+            {% endfor %}
+        </div>
+    </section>
+{% endblock %}

@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+
+{% block title %}Склад · {{ settings.app_name }}{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <div>
+            <h1>Склад</h1>
+            <p class="page-subtitle">Одна строка на тип предмета. Места, выдачи и стоимость показаны сводно внутри строки.</p>
+        </div>
+    </div>
+
+    <section class="panel">
+        <div class="panel-header"><h2>Фильтры</h2></div>
+        <form method="get" class="filter-grid">
+            <label class="form-grid-span-2">
+                <span>Поиск</span>
+                <input type="search" name="q" value="{{ query }}" placeholder="Название, инвентарный номер, теги, сч.фак, место, пользователь">
+            </label>
+            <label>
+                <span>Состояние</span>
+                <select name="condition_status">
+                    <option value="">Любое</option>
+                    {% for status in condition_statuses %}
+                        <option value="{{ status.value }}" {% if selected_condition_status == status.value %}selected{% endif %}>{{ status|condition_label }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                <span>Жизненный статус</span>
+                <select name="lifecycle_status">
+                    <option value="">Любой</option>
+                    {% for status in lifecycle_statuses %}
+                        <option value="{{ status.value }}" {% if selected_lifecycle_status == status.value %}selected{% endif %}>{{ status|lifecycle_label }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                <span>ФИО держателя</span>
+                <input type="text" name="holder" value="{{ selected_holder }}">
+            </label>
+            <label class="checkbox-row">
+                <input type="checkbox" name="show_written_off" value="1" {% if show_written_off %}checked{% endif %}>
+                <span>Показывать списанные</span>
+            </label>
+            <div class="form-actions">
+                <button type="submit" class="button">Применить</button>
+                <a href="{{ url_for('inventory_list') }}" class="button button-secondary">Сбросить</a>
+            </div>
+        </form>
+    </section>
+
+    <section class="panel inventory-panel" id="inventory-panel">
+        <div class="panel-header inventory-panel-header">
+            <h2>Таблица склада</h2>
+            <div class="inline-form">
+                <a href="{{ url_for('equipment_page') }}" class="button button-secondary">Создать тип</a>
+                <a href="{{ url_for('instances_create_page') }}" class="button button-secondary">Создать экземпляры</a>
+                <a href="{{ url_for('instances_list') }}" class="button button-secondary">Массовые действия с экземплярами</a>
+            </div>
+        </div>
+
+        <div class="inventory-sticky-shell" id="inventory-sticky-shell" aria-hidden="true">
+            <div class="inventory-sticky-scroll" id="inventory-sticky-scroll">
+                <table class="table inventory-table inventory-table-head">
+                    {% include "partials/inventory_table_colgroup.html" %}
+                    {% include "partials/inventory_table_head.html" %}
+                </table>
+            </div>
+        </div>
+
+        <div class="table-wrap" id="inventory-table-wrap">
+            <table class="table inventory-table">
+                {% include "partials/inventory_table_colgroup.html" %}
+                {% include "partials/inventory_table_head.html" %}
+                <tbody>
+                    {% for group in groups %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('item_type_detail', item_type_id=group.item_type.id) }}">{{ group.item_type.name }}</a>
+                                <details class="inventory-details">
+                                    <summary>Экземпляры группы</summary>
+                                    <div class="instance-pill-list">
+                                        {% for instance in group.instances %}
+                                            <a class="instance-pill" href="{{ url_for('instance_detail', instance_id=instance.id) }}">
+                                                {{ instance.inventory_number }}
+                                            </a>
+                                        {% endfor %}
+                                    </div>
+                                    <a href="{{ url_for('instances_list') }}?item_type_id={{ group.item_type.id }}{% if show_written_off %}&show_written_off=1{% endif %}">Выбрать несколько экземпляров →</a>
+                                </details>
+                            </td>
+                            <td>{{ group.count_available }} {{ group.item_type.unit_label }}</td>
+                            <td>{{ group.count_factual }} {{ group.item_type.unit_label }}</td>
+                            <td>{{ group.location_display }}</td>
+                            <td>
+                                {% for holder in group.holders %}
+                                    <div>{{ holder.label }}: {{ holder.count }}</div>
+                                {% endfor %}
+                            </td>
+                            <td>{{ group.item_type.unit_price|money }}</td>
+                            <td>
+                                <div>Все: {{ group.type_total_all|money }}</div>
+                                <div class="muted">Активные: {{ group.type_total_active|money }}</div>
+                            </td>
+                            <td>{{ group.purchase_total|money }}</td>
+                            <td>{{ group.unique_purchase_numbers|join(', ') if group.unique_purchase_numbers else '—' }}</td>
+                            <td>{{ group.count_received }} {{ group.item_type.unit_label }}</td>
+                            <td>{{ group.count_official }} {{ group.item_type.unit_label }}</td>
+                            <td>
+                                <div class="action-stack">
+                                    <a class="button button-secondary button-small" href="{{ url_for('item_type_detail', item_type_id=group.item_type.id) }}">Карточка типа</a>
+                                    {% if can_manage %}
+                                        <details class="action-details">
+                                            <summary>Массовые действия</summary>
+                                            <div class="action-panel">
+                                                <form action="{{ url_for('inventory_group_issue') }}" method="post" class="mini-form">
+                                                    <input type="hidden" name="group_key" value="{{ group.key }}">
+                                                    <input type="hidden" name="query" value="{{ query }}">
+                                                    <input type="hidden" name="filter_condition_status" value="{{ selected_condition_status }}">
+                                                    <input type="hidden" name="filter_lifecycle_status" value="{{ selected_lifecycle_status }}">
+                                                    <input type="hidden" name="filter_holder" value="{{ selected_holder }}">
+                                                    <input type="hidden" name="show_written_off" value="{{ 1 if show_written_off else 0 }}">
+                                                    <input type="hidden" name="next_url" value="{{ request.url }}">
+                                                    <h3>Групповая выдача</h3>
+                                                    <label>
+                                                        <span>Количество</span>
+                                                        <input type="number" name="quantity" min="1" max="{{ group.issue_ready_count }}" value="{{ 1 if group.issue_ready_count else 0 }}" {% if not group.issue_ready_count %}disabled{% endif %}>
+                                                    </label>
+                                                    <label>
+                                                        <span>Пользователь</span>
+                                                        <select name="issued_to_user_id" {% if not group.issue_ready_count %}disabled{% endif %}>
+                                                            {% for user in users %}
+                                                                <option value="{{ user.id }}">{{ user.full_name }}</option>
+                                                            {% endfor %}
+                                                        </select>
+                                                    </label>
+                                                    <label>
+                                                        <span>Дата и время</span>
+                                                        <input type="datetime-local" name="issued_at" {% if not group.issue_ready_count %}disabled{% endif %}>
+                                                    </label>
+                                                    <label>
+                                                        <span>Комментарий</span>
+                                                        <input type="text" name="issue_comment" {% if not group.issue_ready_count %}disabled{% endif %}>
+                                                    </label>
+                                                    {% if group.issue_ready_count %}
+                                                        <button type="submit" class="button button-small">Выдать</button>
+                                                    {% else %}
+                                                        <div class="muted">В этой группе сейчас нет активных и свободных экземпляров для выдачи.</div>
+                                                    {% endif %}
+                                                </form>
+
+                                                <form action="{{ url_for('inventory_group_move') }}" method="post" class="mini-form">
+                                                    <input type="hidden" name="group_key" value="{{ group.key }}">
+                                                    <input type="hidden" name="query" value="{{ query }}">
+                                                    <input type="hidden" name="filter_condition_status" value="{{ selected_condition_status }}">
+                                                    <input type="hidden" name="filter_lifecycle_status" value="{{ selected_lifecycle_status }}">
+                                                    <input type="hidden" name="filter_holder" value="{{ selected_holder }}">
+                                                    <input type="hidden" name="show_written_off" value="{{ 1 if show_written_off else 0 }}">
+                                                    <input type="hidden" name="next_url" value="{{ request.url }}">
+                                                    <h3>Групповое перемещение</h3>
+                                                    <label>
+                                                        <span>Количество</span>
+                                                        <input type="number" name="quantity" min="1" max="{{ group.count_received }}" value="1">
+                                                    </label>
+                                                    <label>
+                                                        <span>Тип места</span>
+                                                        <select name="physical_location_type">
+                                                            {% for location_type in physical_location_types %}
+                                                                <option value="{{ location_type.value }}">{{ location_type|location_type_label }}</option>
+                                                            {% endfor %}
+                                                        </select>
+                                                    </label>
+                                                    <label>
+                                                        <span>Складской адрес</span>
+                                                        {% set selected_warehouse_location = '' %}
+                                                        <select name="warehouse_location_text">
+                                                            {% include "partials/warehouse_location_select_options.html" %}
+                                                        </select>
+                                                    </label>
+                                                    <label>
+                                                        <span>Лабораторное место</span>
+                                                        <select name="lab_location_id">
+                                                            <option value="">Не выбрано</option>
+                                                            {% for location in location_options %}
+                                                                <option value="{{ location.id }}">{{ location.label }}</option>
+                                                            {% endfor %}
+                                                        </select>
+                                                    </label>
+                                                    <label>
+                                                        <span>Комментарий</span>
+                                                        <input type="text" name="comment">
+                                                    </label>
+                                                    <button type="submit" class="button button-small">Переместить</button>
+                                                </form>
+                                            </div>
+                                        </details>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="12" class="empty-cell">Под выбранные фильтры ничего не найдено.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <script>
+        (() => {
+            const panel = document.getElementById("inventory-panel");
+            const shell = document.getElementById("inventory-sticky-shell");
+            const wrap = document.getElementById("inventory-table-wrap");
+            const stickyScroll = document.getElementById("inventory-sticky-scroll");
+            const originalHead = wrap?.querySelector("thead");
+            const panelHeader = panel?.querySelector(".inventory-panel-header");
+
+            if (!panel || !shell || !wrap || !stickyScroll || !originalHead || !panelHeader) {
+                return;
+            }
+
+            let syncing = false;
+
+            const syncFromWrap = () => {
+                if (syncing) {
+                    return;
+                }
+                syncing = true;
+                stickyScroll.scrollLeft = wrap.scrollLeft;
+                syncing = false;
+            };
+
+            const syncFromSticky = () => {
+                if (syncing) {
+                    return;
+                }
+                syncing = true;
+                wrap.scrollLeft = stickyScroll.scrollLeft;
+                syncing = false;
+            };
+
+            const updateStickyShell = () => {
+                const panelRect = panel.getBoundingClientRect();
+                const headRect = originalHead.getBoundingClientRect();
+                const shouldShow = headRect.top < 0 && panelRect.bottom > shell.offsetHeight + 24;
+
+                shell.classList.toggle("is-visible", shouldShow);
+                if (!shouldShow) {
+                    return;
+                }
+
+                const wrapRect = wrap.getBoundingClientRect();
+                const headerRect = panelHeader.getBoundingClientRect();
+                shell.style.top = `${Math.max(headerRect.bottom, 0)}px`;
+                shell.style.left = `${wrapRect.left}px`;
+                shell.style.width = `${wrapRect.width}px`;
+                stickyScroll.scrollLeft = wrap.scrollLeft;
+            };
+
+            wrap.addEventListener("scroll", syncFromWrap, { passive: true });
+            stickyScroll.addEventListener("scroll", syncFromSticky, { passive: true });
+            window.addEventListener("scroll", updateStickyShell, { passive: true });
+            window.addEventListener("resize", updateStickyShell);
+            updateStickyShell();
+        })();
+    </script>
+{% endblock %}

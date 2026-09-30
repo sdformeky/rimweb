@@ -1,0 +1,14 @@
+<ul class="tree-list">
+    {% for node in nodes %}
+        <li>
+            <a href="{{ url_for('locations_page') }}?selected_id={{ node.location.id }}" class="{% if selected_location and selected_location.id == node.location.id %}tree-link-active{% endif %}">
+                {{ node.location.type_label }} {{ node.location.name }}
+            </a>
+            {% if node.children %}
+                {% with nodes=node.children %}
+                    {% include "partials/location_tree.html" %}
+                {% endwith %}
+            {% endif %}
+        </li>
+    {% endfor %}
+</ul>
